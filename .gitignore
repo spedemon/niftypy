@@ -1,0 +1,8 @@
+NiftyCore.egg-info/
+build/
+dist/
+*.pyc
+*.*~
+*.dll
+*.so
+*.dylib
