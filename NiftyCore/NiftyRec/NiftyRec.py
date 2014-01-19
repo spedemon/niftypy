@@ -11,10 +11,21 @@
 from simplewrap import *
 import numpy
 
-__all__ = ['test_library_niftyrec_c','PET_project','PET_backproject','PET_project_compressed','PET_backproject_compressed','SPECT_project_parallelholes','SPECT_backproject_parallelholes','CT_project_conebeam','CT_backproject_conebeam','CT_project_parallelbeam','CT_backproject_parallelbeam','ET_spherical_phantom'] 
-niftyrec_lib_paths = [filepath(__file__), '/usr/local/niftyrec/lib/', 'C:/Prorgam Files/NiftyRec/lib/','/Users/spedemon/Desktop/NiftyRec-1.6.9/NiftyRec_install/lib/'] 
+
+__all__ = ['test_library_niftyrec_c',
+'PET_project','PET_backproject','PET_project_compressed','PET_backproject_compressed',
+'SPECT_project_parallelholes','SPECT_backproject_parallelholes',
+'CT_project_conebeam','CT_backproject_conebeam','CT_project_parallelbeam','CT_backproject_parallelbeam',
+'ET_spherical_phantom','ET_cylindrical_phantom','ET_spheres_ring_phantom'] 
+
+library_name = "_et_array_interface"
+niftyrec_lib_paths = [filepath(__file__), './', '/usr/local/niftyrec/lib/', 'C:/Prorgam Files/NiftyRec/lib/','/Users/spedemon/Desktop/NiftyRec-1.6.9/NiftyRec_install/lib/'] 
+
+
+
 
 ####################################### Error handling: ########################################
+
 class ErrorInCFunction(Exception): 
     def __init__(self,msg,status,function_name): 
         self.msg = str(msg) 
@@ -70,22 +81,25 @@ def test_library_niftyrec_c():
     r = call_c_function( niftyrec_c.echo, descriptor ) 
     return r.output == number
     
-def find_c_library(path='/'): 
-    global niftyrec_c
-    paths = niftyrec_lib_paths+[path,] 
-    for path in paths: 
-        try: 
-            niftyrec_c = load_c_library("_et_array_interface",path)
-        except: 
-            pass 
-        else: 
-            return True 
-    return False 
 
-niftyrec_c = None 
-find_c_library() 
-
-
+(found,fullpath,path) = find_c_library(library_name,niftyrec_lib_paths) 
+if found == NOT_FOUND: 
+    raise LibraryNotFound("NiftyRec")
+elif found == FOUND_NOT_LOADABLE: 
+    print "The library %s cannot be loaded, please make sure that the path has been exported. "%fullpath
+    print "1) Before launching Python, type the following in the terminal (the same terminal): "
+    import platform
+    if platform.system()=='Linux':
+        print "export LD_LIBRARY_PATH=%s"%path
+    elif platform.system()=='Darwin':
+        print "export DYLD_LIBRARY_PATH=%s"%path
+    elif platform.system()=='Windows':
+        print "Add %s to the system PATH using Control Panel -> Advanced Settings -> System -> .."%path
+    #Exporting path now does not work, what can be done at this point to handle gracefully the missing environment variable?  
+    #export_dl_library_path(path) 
+    #niftyrec_c = load_c_library(fullpath) 
+else: 
+    niftyrec_c = load_c_library(fullpath)
 
 #################################### Create interface to the C functions: ####################################
 
@@ -117,12 +131,12 @@ def PET_backproject(projection_data,attenuation,binning,use_gpu=0):
     return r.dictionary 
 
     
-def PET_project_compressed(activity, attenuation, offsets, locations, 
+def PET_project_compressed(activity, attenuation, offsets, locations, active, 
 N_axial, N_azimuthal, angular_step_axial, angular_step_azimuthal, N_u, N_v, size_u, size_v, 
 activity_size_x, activity_size_y, activity_size_z, attenuation_size_x, attenuation_size_y, attenuation_size_z, 
 T_activity_x, T_activity_y, T_activity_z, R_activity_x, R_activity_y, R_activity_z, 
 T_attenuation_x, T_attenuation_y, T_attenuation_z, R_attenuation_x, R_attenuation_y, R_attenuation_z, 
-use_gpu, N_samples, sample_step, background, background_attenuation, truncate_negative_values): 
+use_gpu, N_samples, sample_step, background, background_attenuation, truncate_negative_values,direction,block_size): 
     """PET projection; output projection data is compressed. """
     N_locations = locations.shape[0] 
     #accept attenuation=None: 
@@ -172,21 +186,26 @@ use_gpu, N_samples, sample_step, background, background_attenuation, truncate_ne
                  
                   {'name':'offsets',                'type':'array',   'value':offsets}, 
                   {'name':'locations',              'type':'array',   'value':locations}, 
+                  {'name':'active',                 'type':'array',   'value':active}, 
 
                   {'name':'N_samples',                'type':'uint',    'value':N_samples}, 
                   {'name':'sample_step',              'type':'float',   'value':sample_step}, 
                   {'name':'background',               'type':'float',   'value':background},
                   {'name':'background_attenuation',   'type':'float',   'value':background_attenuation},  
-                  {'name':'truncate_negative_values', 'type':'uint',   'value':truncate_negative_values},  
+                  {'name':'truncate_negative_values', 'type':'uint',    'value':truncate_negative_values},  
 
-                  {'name':'use_gpu',                'type':'int',     'value':use_gpu}, ]
+                  {'name':'use_gpu',                  'type':'uint',    'value':use_gpu}, 
+                  {'name':'direction',                'type':'uint',    'value':direction}, 
+                  {'name':'block_size',               'type':'uint',    'value':block_size}, 
+                  ]
     r = call_c_function( niftyrec_c.PET_project_compressed, descriptor ) 
     if not r.status == status_success(): 
         raise ErrorInCFunction("The execution of 'PET_project_compressed' was unsuccessful.",r.status,'niftyrec_c.PET_project_compressed')
     return r.dictionary["projection"]
 
 
-def PET_project_compressed_test(activity, attenuation, N_axial, N_azimuthal, offsets, locations): 
+
+def PET_project_compressed_test(activity, attenuation, N_axial, N_azimuthal, offsets, locations, active): 
     N_locations = locations.shape[0]
     #accept attenuation=None: 
     if attenuation == None: 
@@ -207,30 +226,30 @@ def PET_project_compressed_test(activity, attenuation, N_axial, N_azimuthal, off
                   {'name':'N_locations',            'type':'uint',    'value':N_locations},
                  
                   {'name':'offsets',                'type':'array',   'value':offsets}, 
-                  {'name':'locations',              'type':'array',   'value':locations}, ]
+                  {'name':'locations',              'type':'array',   'value':locations}, 
+                  {'name':'active',                 'type':'array',   'value':active}, ]
     r = call_c_function( niftyrec_c.PET_project_compressed_test, descriptor ) 
     if not r.status == status_success(): 
         raise ErrorInCFunction("The execution of 'PET_project_compressed_test' was unsuccessful.",r.status,'niftyrec_c.PET_project_compressed_test')
     return r.dictionary["projection"]
-    
+
 
                            
 
-
-def PET_backproject_compressed(projection_data, attenuation, offsets, locations,
+def PET_backproject_compressed(projection_data, attenuation, offsets, locations, active, 
 N_axial, N_azimuthal, angular_step_axial, angular_step_azimuthal, N_u, N_v, size_u, size_v, 
 N_activity_x, N_activity_y, N_activity_z, 
 activity_size_x, activity_size_y, activity_size_z, 
 attenuation_size_x, attenuation_size_y, attenuation_size_z, 
 T_activity_x, T_activity_y, T_activity_z, R_activity_x, R_activity_y, R_activity_z, 
 T_attenuation_x, T_attenuation_y, T_attenuation_z, R_attenuation_x, R_attenuation_y, R_attenuation_z, 
-use_gpu=0): 
+use_gpu, N_samples, sample_step, background, background_attenuation, direction, block_size): 
     """PET back-projection; input projection data is compressed. """
     N_locations = locations.shape[0] 
     #accept attenuation=None: 
     if attenuation == None: 
         attenuation = numpy.zeros((0,0,0))
-    descriptor = [{'name':'back_projection',        'type':'array',   'value':None,   'dtype':float32,  'size':(N_activity_x,N_activity_y,N_activity_z),   'swapaxes':(0,2)  }, 
+    descriptor = [{'name':'back_projection',        'type':'array',   'value':None,   'dtype':float32,  'size':(N_activity_x,N_activity_y,N_activity_z),  }, # 'swapaxes':(0,2)  }, 
                   {'name':'N_activity_x',           'type':'uint',    'value':N_activity_x}, 
                   {'name':'N_activity_y',           'type':'uint',    'value':N_activity_y}, 
                   {'name':'N_activity_z',           'type':'uint',    'value':N_activity_z}, 
@@ -271,11 +290,18 @@ use_gpu=0):
 
                   {'name':'N_locations',            'type':'uint',    'value':N_locations},
                  
-                  {'name':'offsets',                'type':'array',  'value':offsets}, 
-                  {'name':'locations',              'type':'array',  'value':locations}, 
-                  {'name':'projection_data',        'type':'array',  'value':projection_data}, 
-                  
-                  {'name':'use_gpu',                'type':'int',    'value':use_gpu}, ]
+                  {'name':'offsets',                'type':'array',   'value':offsets}, 
+                  {'name':'locations',              'type':'array',   'value':locations}, 
+                  {'name':'active',                 'type':'array',   'value':active}, 
+                  {'name':'projection_data',        'type':'array',   'value':projection_data}, 
+           
+                  {'name':'use_gpu',                'type':'uint',    'value':use_gpu}, 
+                  {'name':'N_samples',              'type':'uint',    'value':N_samples}, 
+                  {'name':'sample_step',            'type':'float',   'value':sample_step}, 
+                  {'name':'background_activity',    'type':'float',   'value':background}, 
+                  {'name':'background_attenuation', 'type':'float',   'value':background_attenuation}, 
+                  {'name':'direction',              'type':'uint',    'value':direction},
+                  {'name':'block_size',             'type':'uint',    'value':block_size},  ]
     r = call_c_function( niftyrec_c.PET_backproject_compressed, descriptor ) 
     if not r.status == status_success(): 
         raise ErrorInCFunction("The execution of 'PET_backproject_compressed' was unsuccessful.",r.status,'niftyrec_c.PET_backproject_compressed')
@@ -286,7 +312,7 @@ use_gpu=0):
 
 def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value): 
     """PET back-projection; input projection data is compressed. """
-    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),   'swapaxes':(0,2)  }, 
+    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  },#  'swapaxes':(0,2)  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
                   {'name':'Nz',                    'type':'uint',  'value':voxels[2]}, 
@@ -303,7 +329,59 @@ def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value):
     if not r.status == status_success(): 
         raise ErrorInCFunction("The execution of 'ET_spherical_phantom' was unsuccessful.",r.status,'niftyrec_c.ET_spherical_phantom')
     return r.dictionary['image']
-    
+
+
+
+def ET_cylindrical_phantom(voxels,size,center,radius,length,axis,inner_value,outer_value): 
+    """PET back-projection; input projection data is compressed. """
+    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  },#  'swapaxes':(0,2)  }, 
+                  {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
+                  {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
+                  {'name':'Nz',                    'type':'uint',  'value':voxels[2]}, 
+                  {'name':'sizex',                 'type':'float', 'value':size[0]},
+                  {'name':'sizey',                 'type':'float', 'value':size[1]},
+                  {'name':'sizez',                 'type':'float', 'value':size[2]},
+                  {'name':'centerx',               'type':'float', 'value':center[0]},
+                  {'name':'centery',               'type':'float', 'value':center[1]},
+                  {'name':'centerz',               'type':'float', 'value':center[2]},
+                  {'name':'radius',                'type':'float', 'value':radius},
+                  {'name':'length',                'type':'float', 'value':length},
+                  {'name':'axis',                  'type':'uint',  'value':axis},
+                  {'name':'inner_value',           'type':'float', 'value':inner_value},
+                  {'name':'outer_value',           'type':'float', 'value':outer_value},  ] 
+    r = call_c_function( niftyrec_c.ET_cylindrical_phantom, descriptor ) 
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'ET_cylindrical_phantom' was unsuccessful.",r.status,'niftyrec_c.ET_cylindrical_phantom')
+    return r.dictionary['image']
+
+
+
+def ET_spheres_ring_phantom(voxels,size,center,ring_radius,min_sphere_radius,max_sphere_radius,N_spheres=6,inner_value=1.0,outer_value=0.0,taper=0,axis=0): 
+    """PET back-projection; input projection data is compressed. """
+    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  }, # 'swapaxes':(0,2)  }, 
+                  {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
+                  {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
+                  {'name':'Nz',                    'type':'uint',  'value':voxels[2]}, 
+                  {'name':'sizex',                 'type':'float', 'value':size[0]},
+                  {'name':'sizey',                 'type':'float', 'value':size[1]},
+                  {'name':'sizez',                 'type':'float', 'value':size[2]},
+                  {'name':'centerx',               'type':'float', 'value':center[0]},
+                  {'name':'centery',               'type':'float', 'value':center[1]},
+                  {'name':'centerz',               'type':'float', 'value':center[2]},
+                  {'name':'ring_radius',           'type':'float', 'value':ring_radius}, 
+                  {'name':'min_sphere_radius',     'type':'float', 'value':min_sphere_radius}, 
+                  {'name':'max_sphere_radius',     'type':'float', 'value':max_sphere_radius}, 
+                  {'name':'N_spheres',             'type':'uint',  'value':N_spheres}, 
+                  {'name':'inner_value',           'type':'float', 'value':inner_value},
+                  {'name':'outer_value',           'type':'float', 'value':outer_value},  
+                  {'name':'taper',                 'type':'float', 'value':taper},  
+                  {'name':'ring_axis',             'type':'uint',  'value':axis}, ] 
+    r = call_c_function( niftyrec_c.ET_spheres_ring_phantom, descriptor ) 
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'ET_spheres_ring_phantom' was unsuccessful.",r.status,'niftyrec_c.ET_spheres_ring_phantom')
+    return r.dictionary['image']
+
+
     
     
     
