@@ -1,12 +1,12 @@
 
-# NiftyRec - Ra-tracing tools
+# NiftyRec - Ray-tracing tools
 # Stefano Pedemonte
 # Center for Medical Image Computing (CMIC), University College Lonson (UCL)
 # 2009-2012, London
 # Aalto University, School of Science
 # Summer 2013, Helsinki
 # Martinos Center for Biomedical Imaging, Harvard University/MGH
-# Dec. 2013, Boston
+# Jan. 2014, Boston
 
 from simplewrap import *
 import numpy
@@ -42,7 +42,7 @@ class ErrorInCFunction(Exception):
         else: 
             self.status_msg = "Unspecified Error"
     def __str__(self): 
-        return "'%s' returned by the C Function '%s'. %s"%(self.status_msg,self.function_name,self.msg)
+        return "'%s' returned by the C Function '%s' (error code %d). %s"%(self.status_msg,self.function_name,self.status,self.msg)
 
 
 def status_success(): 
@@ -142,7 +142,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, truncate_ne
     #accept attenuation=None: 
     if attenuation == None: 
         attenuation = numpy.zeros((0,0,0))
-    descriptor = [{'name':'projection',             'type':'array',   'value':None,   'dtype':float32,  'size':(N_locations), }, 
+    descriptor = [{'name':'projection',             'type':'array',   'value':None,   'dtype':float32,  'size':(N_locations) }, 
                   {'name':'activity',               'type':'array',   'value':activity}, 
                   {'name':'N_activity_x',           'type':'uint',    'value':activity.shape[0]}, 
                   {'name':'N_activity_y',           'type':'uint',    'value':activity.shape[1]}, 
@@ -249,7 +249,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, direction, 
     #accept attenuation=None: 
     if attenuation == None: 
         attenuation = numpy.zeros((0,0,0))
-    descriptor = [{'name':'back_projection',        'type':'array',   'value':None,   'dtype':float32,  'size':(N_activity_x,N_activity_y,N_activity_z),  }, # 'swapaxes':(0,2)  }, 
+    descriptor = [{'name':'back_projection',        'type':'array',   'value':None,   'dtype':float32,  'size':(N_activity_x,N_activity_y,N_activity_z),  'order':"F"  }, 
                   {'name':'N_activity_x',           'type':'uint',    'value':N_activity_x}, 
                   {'name':'N_activity_y',           'type':'uint',    'value':N_activity_y}, 
                   {'name':'N_activity_z',           'type':'uint',    'value':N_activity_z}, 
@@ -312,7 +312,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, direction, 
 
 def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value): 
     """PET back-projection; input projection data is compressed. """
-    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  },#  'swapaxes':(0,2)  }, 
+    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
                   {'name':'Nz',                    'type':'uint',  'value':voxels[2]}, 
@@ -334,7 +334,7 @@ def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value):
 
 def ET_cylindrical_phantom(voxels,size,center,radius,length,axis,inner_value,outer_value): 
     """PET back-projection; input projection data is compressed. """
-    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  },#  'swapaxes':(0,2)  }, 
+    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
                   {'name':'Nz',                    'type':'uint',  'value':voxels[2]}, 
@@ -358,7 +358,7 @@ def ET_cylindrical_phantom(voxels,size,center,radius,length,axis,inner_value,out
 
 def ET_spheres_ring_phantom(voxels,size,center,ring_radius,min_sphere_radius,max_sphere_radius,N_spheres=6,inner_value=1.0,outer_value=0.0,taper=0,axis=0): 
     """PET back-projection; input projection data is compressed. """
-    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  }, # 'swapaxes':(0,2)  }, 
+    descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
                   {'name':'Nz',                    'type':'uint',  'value':voxels[2]}, 

@@ -6,6 +6,6 @@
 # Aalto University, School of Science, Helsinki
 # Summer 2013, Helsinki 
 # Martinos Center for Biomedical Imaging, Harvard University/MGH, Boston
-# Dec. 2013, Boston
+# Jan. 2014, Boston
 
 from NiftyRec import *

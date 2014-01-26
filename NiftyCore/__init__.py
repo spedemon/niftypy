@@ -10,5 +10,5 @@
 
 from Common import *
 import NiftyRec
-#import NiftyReg
+import NiftyReg
 #import NiftySeg
