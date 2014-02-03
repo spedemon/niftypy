@@ -383,25 +383,64 @@ def ET_spheres_ring_phantom(voxels,size,center,ring_radius,min_sphere_radius,max
 
 
     
-    
-    
 
-def SPECT_project_parallelholes(activity,attenuation,camera_trajectory,PSF,use_gpu=0): 
+def SPECT_project_parallelholes(activity,cameras,attenuation=None,psf=None,background=0.0, background_attenuation=0.0, use_gpu=1, truncate_negative_values=0): 
     """SPECT projection; parallel-holes geometry. """
-    descriptor = [    ] 
+    #accept attenuation=None and psf=None: 
+    if attenuation == None: 
+        attenuation = numpy.zeros((0,0,0)) 
+    if psf==None: 
+        psf = numpy.zeros((0,0,0)) 
+    N_projections = cameras.shape[0]
+    descriptor = [{'name':'activity',               'type':'array',   'value':activity }, 
+                  {'name':'activity_size',          'type':'array',   'value':int32(activity.shape) }, 
+                  {'name':'projection',             'type':'array',   'value':None,   'dtype':float32,  'size':(activity.shape[0],activity.shape[1],N_projections),  'order':"F"  }, 
+                  {'name':'projection_size',        'type':'array',   'value':int32([N_projections, activity.shape[0], activity.shape[1]]) }, 
+                  {'name':'cameras',                'type':'array',   'value':cameras,                  'order':"F" }, 
+                  {'name':'cameras_size',           'type':'array',   'value':int32(cameras.shape) }, 
+                  {'name':'psf',                    'type':'array',   'value':psf,                      'order':"F" }, 
+                  {'name':'psf_size',               'type':'array',   'value':int32(psf.shape) }, 
+                  {'name':'attenuation',            'type':'array',   'value':attenuation }, 
+                  {'name':'attenuation_size',       'type':'array',   'value':int32(attenuation.shape) }, 
+                  {'name':'background',             'type':'float',   'value':background }, 
+                  {'name':'background_attenuation', 'type':'float',   'value':background_attenuation }, 
+                  {'name':'use_gpu',                'type':'int',     'value':use_gpu }, 
+                  {'name':'truncate_negative_values','type':'int',    'value':truncate_negative_values },  ]
+
     r = call_c_function( niftyrec_c.SPECT_project_parallelholes, descriptor ) 
     if not r.status == status_success(): 
         raise ErrorInCFunction("The execution of 'SPECT_project_parallelholes' was unsuccessful.",r.status,'niftyrec_c.SPECT_project_parallelholes')
-    return r.dictionary
+    return r.dictionary['projection']
 
 
-def SPECT_backproject_parallelholes(projection_data,attenuation,camera_trajectory,PSF,use_gpu=0): 
-    """SPECT back-projection; parallel-holes geometry. """
-    descriptor = [    ] 
+def SPECT_backproject_parallelholes(projection, cameras, attenuation=None,psf=None,background=0.0, background_attenuation=0.0, use_gpu=1, truncate_negative_values=0): 
+    """SPECT backprojection; parallel-holes geometry. """
+    #accept attenuation=None and psf=None: 
+    if attenuation == None: 
+        attenuation = numpy.zeros((0,0,0)) 
+    if psf==None: 
+        psf = numpy.zeros((0,0,0)) 
+    N_projections = cameras.shape[0]
+    descriptor = [{'name':'projection',             'type':'array',   'value':projection }, 
+                  {'name':'projection_size',        'type':'array',   'value':int32(projection.shape) }, 
+                  {'name':'backprojection',         'type':'array',   'value':None,   'dtype':float32,  'size':(projection.shape[0],projection.shape[1],projection.shape[0]),  'order':"F"  }, 
+                  {'name':'backprojection_size',    'type':'array',   'value':int32( [projection.shape[0],projection.shape[1],projection.shape[0]] ) }, 
+                  {'name':'cameras',                'type':'array',   'value':cameras,                  'order':"F" }, 
+                  {'name':'cameras_size',           'type':'array',   'value':int32(cameras.shape) }, 
+                  {'name':'psf',                    'type':'array',   'value':psf,                      'order':"F" }, 
+                  {'name':'psf_size',               'type':'array',   'value':int32(psf.shape) }, 
+                  {'name':'attenuation',            'type':'array',   'value':attenuation }, 
+                  {'name':'attenuation_size',       'type':'array',   'value':int32(attenuation.shape) }, 
+                  {'name':'background',             'type':'float',   'value':background }, 
+                  {'name':'background_attenuation', 'type':'float',   'value':background_attenuation }, 
+                  {'name':'use_gpu',                'type':'int',     'value':use_gpu }, 
+                  {'name':'truncate_negative_values','type':'int',    'value':truncate_negative_values },  ]
+
     r = call_c_function( niftyrec_c.SPECT_backproject_parallelholes, descriptor ) 
     if not r.status == status_success(): 
         raise ErrorInCFunction("The execution of 'SPECT_backproject_parallelholes' was unsuccessful.",r.status,'niftyrec_c.SPECT_backproject_parallelholes')
-    return r.dictionary 
+    return r.dictionary['backprojection']
+    
 
 
 def CT_project_conebeam(attenuation,camera_trajectory,source_trajectory,use_gpu=0): 
