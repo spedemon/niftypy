@@ -9,12 +9,13 @@
 
 from simplewrap import *
 import numpy
+import os, platform
 
 
 __all__ = ['niftyreg_c','test_library_niftyreg_c','resample_image_rigid','deriv_intensity_wrt_space_rigid','deriv_intensity_wrt_transformation_rigid','deriv_ssd_wrt_transformation_rigid','gaussian_smoothing',]
 
 library_name = "_reg_array_interface"
-niftyreg_lib_paths = [filepath(__file__), './', '/usr/local/niftyrec/lib/', 'C:/Prorgam Files/NiftyRec/lib/','/Users/spedemon/Desktop/NiftyRec-1.6.9/NiftyRec_install/lib/'] 
+niftyreg_lib_paths = [filepath(__file__), './', '/usr/local/niftyreg/lib/', 'C:/Prorgam Files/NiftyReg/lib/'] 
 
 
 ####################################### Error handling: ########################################
@@ -64,6 +65,12 @@ def status_unhandled_error():
     return r.return_value
 
 
+class LibraryNotFound(Exception): 
+    def __init__(self,msg): 
+        self.msg = msg 
+    def __str__(self): 
+        return "Library cannot be found: %s"%str(self.msg) 
+
 
 ####################################### Load library: ########################################
 def test_library_niftyreg_c(): 
@@ -73,21 +80,44 @@ def test_library_niftyreg_c():
                     {'name':'output', 'type':'int', 'value':None },  ]
     r = call_c_function( niftyreg_c.echo, descriptor ) 
     return r.output == number
-    
+
+# search for the library in the list of locations 'niftyreg_lib_paths' 
+# and in the locations in the environment variables "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH" and "PATH"
+if platform.system()=='Linux':
+    sep = ":"
+elif platform.system()=='Darwin':
+    sep = ":"
+elif platform.system()=='Windows':
+    sep = ";"
+if os.environ.has_key('LD_LIBRARY_PATH'): 
+    niftyreg_lib_paths = niftyreg_lib_paths + os.environ['LD_LIBRARY_PATH'].split(sep)
+if os.environ.has_key('DYLD_LIBRARY_PATH'): 
+    niftyreg_lib_paths = niftyreg_lib_paths + os.environ['DYLD_LIBRARY_PATH'].split(sep)
+if os.environ.has_key('PATH'): 
+    niftyreg_lib_paths = niftyreg_lib_paths + os.environ['PATH'].split(sep)
 
 (found,fullpath,path) = find_c_library(library_name,niftyreg_lib_paths) 
 if found == NOT_FOUND: 
-    raise LibraryNotFound("niftyreg")
-elif found == FOUND_NOT_LOADABLE: 
-    print "The library %s cannot be loaded, please make sure that the path has been exported. "%fullpath
+    print "The library %s cannot be FOUND, please make sure that the path to the NiftyReg libraries has been exported. "%fullpath
     print "1) Before launching Python, type the following in the terminal (the same terminal): "
-    import platform
+    path = "'path to the niftyreg libraries'"
     if platform.system()=='Linux':
         print "export LD_LIBRARY_PATH=%s"%path
     elif platform.system()=='Darwin':
         print "export DYLD_LIBRARY_PATH=%s"%path
     elif platform.system()=='Windows':
         print "Add %s to the system PATH using Control Panel -> Advanced Settings -> System -> .."%path
+    raise LibraryNotFound("NiftyReg"+" ("+str(library_name)+") ")
+elif found == FOUND_NOT_LOADABLE: 
+    print "The library %s cannot be LOADED, please make sure that the path to the NiftyReg libraries has been exported. "%fullpath
+    print "1) Before launching Python, type the following in the terminal (the same terminal): "
+    if platform.system()=='Linux':
+        print "export LD_LIBRARY_PATH=%s"%path
+    elif platform.system()=='Darwin':
+        print "export DYLD_LIBRARY_PATH=%s"%path
+    elif platform.system()=='Windows':
+        print "Add %s to the system PATH using Control Panel -> Advanced Settings -> System -> .."%path
+    raise LibraryNotFound("NiftyReg"+" ("+str(library_name)+") ")
 else: 
     niftyreg_c = load_c_library(fullpath)
 

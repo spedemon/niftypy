@@ -10,7 +10,7 @@
 
 from simplewrap import *
 import numpy
-
+import os, platform
 
 __all__ = ['test_library_niftyrec_c',
 'PET_project','PET_backproject','PET_project_compressed','PET_backproject_compressed',
@@ -19,7 +19,7 @@ __all__ = ['test_library_niftyrec_c',
 'ET_spherical_phantom','ET_cylindrical_phantom','ET_spheres_ring_phantom'] 
 
 library_name = "_et_array_interface"
-niftyrec_lib_paths = [filepath(__file__), './', '/usr/local/niftyrec/lib/', 'C:/Prorgam Files/NiftyRec/lib/','/Users/spedemon/Desktop/NiftyRec-1.6.9/NiftyRec_install/lib/'] 
+niftyrec_lib_paths = [localpath(), filepath(__file__), './', '/usr/local/niftyrec/lib/', 'C:/Prorgam Files/NiftyRec/lib/'] 
 
 
 
@@ -71,6 +71,12 @@ def status_unhandled_error():
     return r.return_value
 
 
+class LibraryNotFound(Exception): 
+    def __init__(self,msg): 
+        self.msg = msg 
+    def __str__(self): 
+        return "Library cannot be found: %s"%str(self.msg) 
+
 
 ####################################### Load library: ########################################
 def test_library_niftyrec_c(): 
@@ -82,22 +88,44 @@ def test_library_niftyrec_c():
     return r.output == number
     
 
+# search for the library in the list of locations 'niftyrec_lib_paths' 
+# and in the locations in the environment variables "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH" and "PATH"
+
+if platform.system()=='Linux':
+    sep = ":"
+elif platform.system()=='Darwin':
+    sep = ":"
+elif platform.system()=='Windows':
+    sep = ";"
+if os.environ.has_key('LD_LIBRARY_PATH'): 
+    niftyrec_lib_paths = niftyrec_lib_paths + os.environ['LD_LIBRARY_PATH'].split(sep)
+if os.environ.has_key('DYLD_LIBRARY_PATH'): 
+    niftyrec_lib_paths = niftyrec_lib_paths + os.environ['DYLD_LIBRARY_PATH'].split(sep)
+if os.environ.has_key('PATH'): 
+    niftyrec_lib_paths = niftyrec_lib_paths + os.environ['PATH'].split(sep)
+
 (found,fullpath,path) = find_c_library(library_name,niftyrec_lib_paths) 
 if found == NOT_FOUND: 
-    raise LibraryNotFound("NiftyRec")
-elif found == FOUND_NOT_LOADABLE: 
-    print "The library %s cannot be loaded, please make sure that the path has been exported. "%fullpath
+    print "The library %s cannot be FOUND, please make sure that the path to the NiftyRec libraries has been exported. "%fullpath
     print "1) Before launching Python, type the following in the terminal (the same terminal): "
-    import platform
+    path = "'path to the niftyrec libraries'"
     if platform.system()=='Linux':
         print "export LD_LIBRARY_PATH=%s"%path
     elif platform.system()=='Darwin':
         print "export DYLD_LIBRARY_PATH=%s"%path
     elif platform.system()=='Windows':
         print "Add %s to the system PATH using Control Panel -> Advanced Settings -> System -> .."%path
-    #Exporting path now does not work, what can be done at this point to handle gracefully the missing environment variable?  
-    #export_dl_library_path(path) 
-    #niftyrec_c = load_c_library(fullpath) 
+    raise LibraryNotFound("NiftyRec"+" ("+str(library_name)+") ")
+elif found == FOUND_NOT_LOADABLE: 
+    print "The library %s cannot be LOADED, please make sure that the path to the NiftyRec libraries has been exported. "%fullpath
+    print "1) Before launching Python, type the following in the terminal (the same terminal): "
+    if platform.system()=='Linux':
+        print "export LD_LIBRARY_PATH=%s"%path
+    elif platform.system()=='Darwin':
+        print "export DYLD_LIBRARY_PATH=%s"%path
+    elif platform.system()=='Windows':
+        print "Add %s to the system PATH using Control Panel -> Advanced Settings -> System -> .."%path
+    raise LibraryNotFound("NiftyRec"+" ("+str(library_name)+") ")
 else: 
     niftyrec_c = load_c_library(fullpath)
 
