@@ -5,7 +5,7 @@
 # Dec 2013, Boston 
 
 
-from setuptools import setup, Extension, Library
+from setuptools import setup, Extension
 from glob import glob 
 
 
@@ -40,7 +40,7 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
                      ],
     install_requires=[
-        "numpy >= 1.7.1", 
+        "numpy >= 1.6.0", 
         "simplewrap >= 0.1.0", 
         "DisplayNode >= 0.1.0", 
     ], 

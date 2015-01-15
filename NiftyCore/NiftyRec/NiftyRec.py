@@ -16,12 +16,15 @@ __all__ = ['test_library_niftyrec_c',
 'PET_project','PET_backproject','PET_project_compressed','PET_backproject_compressed',
 'SPECT_project_parallelholes','SPECT_backproject_parallelholes',
 'CT_project_conebeam','CT_backproject_conebeam','CT_project_parallelbeam','CT_backproject_parallelbeam',
-'ET_spherical_phantom','ET_cylindrical_phantom','ET_spheres_ring_phantom'] 
+'ET_spherical_phantom','ET_cylindrical_phantom','ET_spheres_ring_phantom', 
+'TR_grid_from_box_and_affine', 'TR_resample_grid', 'TR_resample_box', 'TR_gradient_grid', 'TR_gradient_box', 'TR_transform_grid',
+ 'INTERPOLATION_LINEAR','INTERPOLATION_POINT'] 
 
 library_name = "_et_array_interface"
 niftyrec_lib_paths = [localpath(), filepath(__file__), './', '/usr/local/niftyrec/lib/', 'C:/Prorgam Files/NiftyRec/lib/'] 
 
-
+INTERPOLATION_LINEAR = 0
+INTERPOLATION_POINT  = 1
 
 
 ####################################### Error handling: ########################################
@@ -168,7 +171,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, truncate_ne
     """PET projection; output projection data is compressed. """
     N_locations = locations.shape[0] 
     #accept attenuation=None: 
-    if attenuation == None: 
+    if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0))
     descriptor = [{'name':'projection',             'type':'array',   'value':None,   'dtype':float32,  'size':(N_locations) }, 
                   {'name':'activity',               'type':'array',   'value':activity}, 
@@ -236,7 +239,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, truncate_ne
 def PET_project_compressed_test(activity, attenuation, N_axial, N_azimuthal, offsets, locations, active): 
     N_locations = locations.shape[0]
     #accept attenuation=None: 
-    if attenuation == None: 
+    if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0))
     descriptor = [{'name':'projection',             'type':'array',   'value':None,   'dtype':float32,  'size':(N_locations),  }, 
                   {'name':'activity',               'type':'array',   'value':activity}, 
@@ -275,7 +278,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, direction, 
     """PET back-projection; input projection data is compressed. """
     N_locations = locations.shape[0] 
     #accept attenuation=None: 
-    if attenuation == None: 
+    if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0))
     descriptor = [{'name':'back_projection',        'type':'array',   'value':None,   'dtype':float32,  'size':(N_activity_x,N_activity_y,N_activity_z),  'order':"F"  }, 
                   {'name':'N_activity_x',           'type':'uint',    'value':N_activity_x}, 
@@ -415,9 +418,9 @@ def ET_spheres_ring_phantom(voxels,size,center,ring_radius,min_sphere_radius,max
 def SPECT_project_parallelholes(activity,cameras,attenuation=None,psf=None,background=0.0, background_attenuation=0.0, use_gpu=1, truncate_negative_values=0): 
     """SPECT projection; parallel-holes geometry. """
     #accept attenuation=None and psf=None: 
-    if attenuation == None: 
+    if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0)) 
-    if psf==None: 
+    if psf is None: 
         psf = numpy.zeros((0,0,0)) 
     N_projections = cameras.shape[0]
     descriptor = [{'name':'activity',               'type':'array',   'value':activity }, 
@@ -444,9 +447,9 @@ def SPECT_project_parallelholes(activity,cameras,attenuation=None,psf=None,backg
 def SPECT_backproject_parallelholes(projection, cameras, attenuation=None,psf=None,background=0.0, background_attenuation=0.0, use_gpu=1, truncate_negative_values=0): 
     """SPECT backprojection; parallel-holes geometry. """
     #accept attenuation=None and psf=None: 
-    if attenuation == None: 
+    if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0)) 
-    if psf==None: 
+    if psf is None: 
         psf = numpy.zeros((0,0,0)) 
     N_projections = cameras.shape[0]
     descriptor = [{'name':'projection',             'type':'array',   'value':projection }, 
@@ -506,4 +509,83 @@ def CT_backproject_parallelbeam(attenuation,camera_trajectory,source_trajectory,
         raise ErrorInCFunction("The execution of 'CT_backproject_parallelbeam' was unsuccessful.",r.status,'niftyrec_c.CT_backproject_parallelbeam')
     return r.dictionary         
 
+
+
+
+
+
+
+
+def TR_grid_from_box_and_affine(box_min, box_max, box_n, affine_box2grid=None): 
+    """Create 3D grid from box and affine transformation. """
+    if affine_box2grid is None: 
+        affine_box2grid=numpy.eye(4,dtype=float32) 
+    descriptor = [{'name':'grid',                'type':'array',  'value':None,                       'dtype':float32,   'size':(box_n[0],box_n[1],box_n[2],3),   'order':"F"    }, 
+                  {'name':'affine_box2grid',     'type':'array',  'value':affine_box2grid, },
+                  {'name':'box_min_x',           'type':'float',  'value':box_min[0], }, 
+                  {'name':'box_min_y',           'type':'float',  'value':box_min[1], }, 
+                  {'name':'box_min_z',           'type':'float',  'value':box_min[2], }, 
+                  {'name':'box_max_x',           'type':'float',  'value':box_max[0], }, 
+                  {'name':'box_max_y',           'type':'float',  'value':box_max[1], }, 
+                  {'name':'box_max_z',           'type':'float',  'value':box_max[2], }, 
+                  {'name':'box_n_x',             'type':'uint',   'value':box_n[0],   }, 
+                  {'name':'box_n_y',             'type':'uint',   'value':box_n[1],   }, 
+                  {'name':'box_n_z',             'type':'uint',   'value':box_n[2],   }, ]
+    r = call_c_function( niftyrec_c.TR_grid_from_box_and_affine, descriptor ) 
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'TR_grid_from_box_and_affine' was unsuccessful.",r.status,'niftyrec_c.TR_grid_from_box_and_affine')
+    return r.dictionary['grid']  
+
+
+def TR_resample_grid(image_array, grid_array, affine_index2grid=None, background=0.0, use_gpu=1, interpolation_mode=INTERPOLATION_LINEAR): 
+    """Resample the image at locations specified by grid_array (array of 3D locations) and given the affine transformation that maps 
+    image array indexes to grid coordinates.  """
+    if affine_index2grid is None: 
+        affine_index2grid=numpy.eye(4,dtype=float32) 
+    resampled_shape = numpy.asarray([grid_array.shape[0],grid_array.shape[1],grid_array.shape[2]])
+    descriptor = [{'name':'resampled_array',     'type':'array',  'value':None,                       'dtype':float32,   'size':(resampled_shape[0],resampled_shape[1],resampled_shape[2]),   'order':"F"    }, 
+                  {'name':'image_array',         'type':'array',  'value':image_array,                'dtype':float32}, 
+                  {'name':'affine',              'type':'array',  'value':affine_index2grid,          'dtype':float32}, 
+                  {'name':'grid_array',          'type':'array',  'value':grid_array,                 'dtype':float32},     
+                  {'name':'Nx',                  'type':'uint',   'value':image_array.shape[0]}, 
+                  {'name':'Ny',                  'type':'uint',   'value':image_array.shape[1]}, 
+                  {'name':'Nz',                  'type':'uint',   'value':image_array.shape[2]}, 
+                  {'name':'Nx_grid',             'type':'uint',   'value':resampled_shape[0]}, 
+                  {'name':'Ny_grid',             'type':'uint',   'value':resampled_shape[1]}, 
+                  {'name':'Nz_grid',             'type':'uint',   'value':resampled_shape[2]}, 
+                  {'name':'background',          'type':'float',  'value':background}, 
+                  {'name':'use_gpu',             'type':'uint',   'value':numpy.uint32(use_gpu)},
+                  {'name':'interpolation_mode',  'type':'uint',   'value':numpy.uint32(interpolation_mode)},
+                   ]
+    r = call_c_function( niftyrec_c.TR_resample_grid, descriptor ) 
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'TR_resample_grid' was unsuccessful.",r.status,'niftyrec_c.TR_resample_grid')
+    return r.dictionary['resampled_array']
+    
+
+def TR_resample_box(image_array, box_min, box_max, box_n, affine_index2grid=None, background=0, use_gpu=1, interpolation_mode=INTERPOLATION_LINEAR): 
+    pass 
+    
+def TR_gradient_grid(image_array, grid_array, affine_index2grid=None, background=0, use_gpu=1, interpolation_mode=INTERPOLATION_LINEAR):
+    pass 
+    
+def TR_gradient_box(image_array, box_min, box_max, box_n, affine_index2grid=None, background=0, use_gpu=1, interpolation_mode=INTERPOLATION_LINEAR):
+    pass 
+
+
+def TR_transform_grid(grid_array, affine_from_grid, use_gpu=1): 
+    """Transform 3D grid according to affine transformation. """
+    if affine_from_grid  is None: 
+        affine_from_grid = numpy.eye(4,dtype=float32) 
+    descriptor = [{'name':'transformed_array',   'type':'array',  'value':None,                       'dtype':float32,   'size':(grid_array.shape[0],grid_array.shape[1],grid_array.shape[2],3),   'order':"F"    }, 
+                  {'name':'grid_array',          'type':'array',  'value':grid_array,                 'dtype':float32},     
+                  {'name':'Nx',                  'type':'uint',   'value':grid_array.shape[0]}, 
+                  {'name':'Ny',                  'type':'uint',   'value':grid_array.shape[1]}, 
+                  {'name':'Nz',                  'type':'uint',   'value':grid_array.shape[2]}, 
+                  {'name':'affine',              'type':'array',  'value':affine_from_grid,           'dtype':float32}, 
+                  {'name':'use_gpu',             'type':'uint',   'value':numpy.uint32(use_gpu)}, ]
+    r = call_c_function( niftyrec_c.TR_transform_grid, descriptor ) 
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'TR_transform_grid' was unsuccessful.",r.status,'niftyrec_c.TR_transform_grid')
+    return r.dictionary['transformed_array'] 
 

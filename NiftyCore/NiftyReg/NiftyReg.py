@@ -84,10 +84,15 @@ def test_library_niftyreg_c():
 # search for the library in the list of locations 'niftyreg_lib_paths' 
 # and in the locations in the environment variables "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH" and "PATH"
 if platform.system()=='Linux':
+
     sep = ":"
+
 elif platform.system()=='Darwin':
+
     sep = ":"
+
 elif platform.system()=='Windows':
+
     sep = ";"
 if os.environ.has_key('LD_LIBRARY_PATH'): 
     niftyreg_lib_paths = niftyreg_lib_paths + os.environ['LD_LIBRARY_PATH'].split(sep)
@@ -129,7 +134,7 @@ else:
 
 def resample_image_rigid(image_data,translation,rotation,center_rotation,sform=None,use_gpu=1): 
     """Resample a 3D image according to rigid transformation parameters. """
-    if sform==None: 
+    if sform is None: 
         sform=numpy.eye(4,dtype=float32) 
     descriptor = [{'name':'image_data',          'type':'array',  'value':image_data,                'dtype':float32}, 
                   {'name':'resampled_image_data','type':'array',  'value':None,                      'dtype':float32,   'size':(image_data.shape),   'order':"F"    }, 
@@ -150,7 +155,7 @@ def resample_image_rigid(image_data,translation,rotation,center_rotation,sform=N
 
 def deriv_intensity_wrt_space_rigid(image_data,translation,rotation,center_rotation,sform=None,use_gpu=1): 
     """Compute the spatial gradient of a 3D image, after transforming it according to rigid transformation parameters. """
-    if sform==None: 
+    if sform is None: 
         sform=numpy.eye(4,dtype=float32) 
     descriptor = [{'name':'image_data',          'type':'array',  'value':image_data,                'dtype':float32}, 
                   {'name':'gradient',            'type':'array',  'value':None,                      'dtype':float32,   'size':(image_data.shape[0],image_data.shape[1],image_data.shape[2],3),   'order':"F"    }, 
@@ -171,7 +176,7 @@ def deriv_intensity_wrt_space_rigid(image_data,translation,rotation,center_rotat
 
 def deriv_intensity_wrt_transformation_rigid(image_data,translation,rotation,center_rotation,sform=None,use_gpu=1): 
     """Compute the spatial gradient of a 3D image, after transforming it according to rigid transformation parameters. """
-    if sform==None: 
+    if sform is None: 
         sform=numpy.eye(4,dtype=float32) 
     descriptor = [{'name':'image_data',          'type':'array',  'value':image_data,                'dtype':float32}, 
                   {'name':'gradient',            'type':'array',  'value':None,                      'dtype':float32,   'size':(image_data.shape[0],image_data.shape[1],image_data.shape[2],6),   'order':"F"    }, 
@@ -198,5 +203,10 @@ def deriv_ssd_wrt_transformation_rigid():
 
 def gaussian_smoothing(image_data): 
     pass 
+
+
+
+
+
 
 
