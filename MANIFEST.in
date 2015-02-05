@@ -1,2 +1,6 @@
 include *.txt
+include *.rst
+include *.md
 recursive-include docs *.txt
+
+
