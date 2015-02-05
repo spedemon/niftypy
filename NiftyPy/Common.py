@@ -1,5 +1,5 @@
 
-# NiftyCore - Python interface to NiftyRec, NiftyReg, NiftySeg 
+# NiftyPy - Python interface to NiftyRec, NiftyReg, NiftySeg 
 # Stefano Pedemonte
 # Centre for Medical Image Computing (CMIC), University College London (UCL)
 # 2009 - 2012, London 

@@ -169,7 +169,7 @@ T_activity_x, T_activity_y, T_activity_z, R_activity_x, R_activity_y, R_activity
 T_attenuation_x, T_attenuation_y, T_attenuation_z, R_attenuation_x, R_attenuation_y, R_attenuation_z, 
 use_gpu, N_samples, sample_step, background, background_attenuation, truncate_negative_values,direction,block_size): 
     """PET projection; output projection data is compressed. """
-    N_locations = locations.shape[0] 
+    N_locations = locations.shape[1] 
     #accept attenuation=None: 
     if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0))
@@ -237,7 +237,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, truncate_ne
 
 
 def PET_project_compressed_test(activity, attenuation, N_axial, N_azimuthal, offsets, locations, active): 
-    N_locations = locations.shape[0]
+    N_locations = locations.shape[1]
     #accept attenuation=None: 
     if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0))
@@ -276,7 +276,7 @@ T_activity_x, T_activity_y, T_activity_z, R_activity_x, R_activity_y, R_activity
 T_attenuation_x, T_attenuation_y, T_attenuation_z, R_attenuation_x, R_attenuation_y, R_attenuation_z, 
 use_gpu, N_samples, sample_step, background, background_attenuation, direction, block_size): 
     """PET back-projection; input projection data is compressed. """
-    N_locations = locations.shape[0] 
+    N_locations = locations.shape[1] 
     #accept attenuation=None: 
     if attenuation  is None: 
         attenuation = numpy.zeros((0,0,0))

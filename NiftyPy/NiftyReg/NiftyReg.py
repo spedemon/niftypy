@@ -1,4 +1,4 @@
-# NiftyCore - Medical imaging tools
+# NiftyPy - Medical imaging tools
 # Stefano Pedemonte
 # Center for Medical Image Computing (CMIC), University College Lonson (UCL)
 # 2009-2012, London
