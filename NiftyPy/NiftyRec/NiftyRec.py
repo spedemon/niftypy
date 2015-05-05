@@ -163,7 +163,7 @@ def PET_backproject(projection_data,attenuation,binning,use_gpu=0):
 
     
 def PET_project_compressed(activity, attenuation, offsets, locations, active, 
-N_axial, N_azimuthal, angular_step_axial, angular_step_azimuthal, N_u, N_v, size_u, size_v, 
+N_axial, N_azimuthal, angles_axial, angles_azimuthal, N_u, N_v, size_u, size_v, 
 activity_size_x, activity_size_y, activity_size_z, attenuation_size_x, attenuation_size_y, attenuation_size_z, 
 T_activity_x, T_activity_y, T_activity_z, R_activity_x, R_activity_y, R_activity_z, 
 T_attenuation_x, T_attenuation_y, T_attenuation_z, R_attenuation_x, R_attenuation_y, R_attenuation_z, 
@@ -206,8 +206,8 @@ use_gpu, N_samples, sample_step, background, background_attenuation, truncate_ne
 
                   {'name':'N_axial',                'type':'uint',    'value':N_axial}, 
                   {'name':'N_azimuthal',            'type':'uint',    'value':N_azimuthal}, 
-                  {'name':'angular_step_axial',     'type':'float',   'value':angular_step_axial}, 
-                  {'name':'angular_step_azimuthal', 'type':'float',   'value':angular_step_azimuthal},
+                  {'name':'angles_axial',           'type':'array',   'value':angles_axial}, 
+                  {'name':'angles_azimuthal',       'type':'array',   'value':angles_azimuthal},
                   {'name':'N_u',                    'type':'uint',    'value':N_u}, 
                   {'name':'N_v',                    'type':'uint',    'value':N_v}, 
                   {'name':'size_u',                 'type':'float',   'value':size_u}, 
@@ -268,7 +268,7 @@ def PET_project_compressed_test(activity, attenuation, N_axial, N_azimuthal, off
                            
 
 def PET_backproject_compressed(projection_data, attenuation, offsets, locations, active, 
-N_axial, N_azimuthal, angular_step_axial, angular_step_azimuthal, N_u, N_v, size_u, size_v, 
+N_axial, N_azimuthal, angles_axial, angles_azimuthal, N_u, N_v, size_u, size_v, 
 N_activity_x, N_activity_y, N_activity_z, 
 activity_size_x, activity_size_y, activity_size_z, 
 attenuation_size_x, attenuation_size_y, attenuation_size_z, 
@@ -312,8 +312,8 @@ use_gpu, N_samples, sample_step, background, background_attenuation, direction, 
 
                   {'name':'N_axial',                'type':'uint',    'value':N_axial}, 
                   {'name':'N_azimuthal',            'type':'uint',    'value':N_azimuthal}, 
-                  {'name':'angular_step_axial',     'type':'float',   'value':angular_step_axial}, 
-                  {'name':'angular_step_azimuthal', 'type':'float',   'value':angular_step_azimuthal},
+                  {'name':'angles_axial',           'type':'array',   'value':angles_axial}, 
+                  {'name':'angles_azimuthal',       'type':'array',   'value':angles_azimuthal},
                   {'name':'N_u',                    'type':'uint',    'value':N_u}, 
                   {'name':'N_v',                    'type':'uint',    'value':N_v}, 
                   {'name':'size_u',                 'type':'float',   'value':size_u}, 
