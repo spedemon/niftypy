@@ -22,7 +22,7 @@ from glob import glob
 
 setup(
     name='NiftyPy',
-    version='0.2.1',
+    version='0.3.0',
     author='Stefano Pedemonte',
     author_email='spedemonte@mgh.harvard.edu',
     packages=['NiftyPy', 
@@ -50,8 +50,8 @@ setup(
                      ],
     install_requires=[
         "numpy >= 1.6.0", 
-        "simplewrap >= 0.2.0", 
-        "DisplayNode >= 0.2.0", 
+        "simplewrap >= 0.3.0", 
+        "DisplayNode >= 0.3.0", 
     ], 
 ) 
 
