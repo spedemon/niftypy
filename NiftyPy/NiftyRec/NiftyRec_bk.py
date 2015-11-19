@@ -12,7 +12,7 @@ from simplewrap import *
 import numpy
 import os, platform
 
-__all__ = ['test_library_niftyrec_c',
+__all__ = ['test_library_niftyrec_c','gpu_set','gpu_reset','gpu_list','gpu_exists',
 'PET_project','PET_backproject','PET_project_compressed','PET_backproject_compressed',
 'SPECT_project_parallelholes','SPECT_backproject_parallelholes',
 'CT_project_conebeam','CT_backproject_conebeam','CT_project_parallelbeam','CT_backproject_parallelbeam',
@@ -133,6 +133,42 @@ else:
     niftyrec_c = load_c_library(fullpath)
 
 #################################### Create interface to the C functions: ####################################
+
+def gpu_list(): 
+    """List GPUs and get information. """
+    MAX_GPUs  = 1000
+    INFO_SIZE = 5
+    description = [{'name':'N',     'type':'array',  'value':None,   'dtype':int32,  'size':(1,) }, 
+                   {'name':'info',  'type':'array',  'value':None,   'dtype':int32,  'size':(MAX_GPUs,INFO_SIZE) }, ]
+    r = call_c_function( niftyrec_c.et_array_list_gpus, descriptor) 
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'list_gpus' was unsuccessful.",r.status,'niftyrec_c.et_array_list_gpus') 
+    N = r.dictionary['N'] 
+    info = r.dictionary['info'] 
+    gpus = []
+    for i in range(N): 
+        gpus.append({'id':info[i,0], 'gflops':info[i,1], 'multiprocessors':info[i,2], 'clock':info[i,3], 'globalmemory':info[i,4] })
+    return gpus 
+
+def gpu_exists(id): 
+    """Check if GPU with given id exists. """
+    for gpu in gpu_list(): 
+        if gpu['id'] == id: 
+            return True 
+    return False 
+
+def gpu_set(id): 
+    """Set GPU (when multiple GPUs are installed in the system). """
+    description = [{'name':'id',   'type':'int',    'value':int32(id) }, ] 
+    r = call_c_function( niftyrec_c.et_array_set_gpu, descriptor)
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'set_gpu' was unsuccessful.",r.status,'niftyrec_c.et_array_set_gpu')
+
+def gpu_reset(): 
+    """Reset the currently selected GPU. """ 
+    r = call_c_function( niftyrec_c.et_array_reset_gpu, [])
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'reset_gpu' was unsuccessful.",r.status,'niftyrec_c.et_array_reset_gpu')
 
 def PET_project(activity,attenuation,binning,use_gpu=0): #FIXME: in this and all other functions, replace 'binning' object with (only the required) raw variables 
     """PET projection; output projection data is compressed. """
@@ -342,7 +378,7 @@ use_gpu, N_samples, sample_step, background, background_attenuation, direction, 
 
 
 def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value): 
-    """PET back-projection; input projection data is compressed. """
+    """Create a spherical phantom. """
     descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
@@ -364,7 +400,7 @@ def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value):
 
 
 def ET_cylindrical_phantom(voxels,size,center,radius,length,axis,inner_value,outer_value): 
-    """PET back-projection; input projection data is compressed. """
+    """Create a cylindrical phantom. """
     descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
@@ -388,7 +424,7 @@ def ET_cylindrical_phantom(voxels,size,center,radius,length,axis,inner_value,out
 
 
 def ET_spheres_ring_phantom(voxels,size,center,ring_radius,min_sphere_radius,max_sphere_radius,N_spheres=6,inner_value=1.0,outer_value=0.0,taper=0,axis=0): 
-    """PET back-projection; input projection data is compressed. """
+    """Create a phantom with a ring of spheres of variable radius. """
     descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 

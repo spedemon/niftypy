@@ -12,8 +12,9 @@ from simplewrap import *
 import numpy
 import os, platform
 
-__all__ = ['test_library_niftyrec_c','set_gpu','reset_gpu','list_gpus',
+__all__ = ['test_library_niftyrec_c','gpu_set','gpu_reset','gpu_list','gpu_exists',
 'PET_project','PET_backproject','PET_project_compressed','PET_backproject_compressed',
+'PET_compress_projection','PET_uncompress_projection','PET_initialize_compression_structure',
 'SPECT_project_parallelholes','SPECT_backproject_parallelholes',
 'CT_project_conebeam','CT_backproject_conebeam','CT_project_parallelbeam','CT_backproject_parallelbeam',
 'ET_spherical_phantom','ET_cylindrical_phantom','ET_spheres_ring_phantom', 
@@ -46,6 +47,12 @@ class ErrorInCFunction(Exception):
             self.status_msg = "Unspecified Error"
     def __str__(self): 
         return "'%s' returned by the C Function '%s' (error code %d). %s"%(self.status_msg,self.function_name,self.status,self.msg)
+
+class ErrorGPU(Exception): 
+    def __init__(self,msg): 
+        self.msg = msg 
+    def __str__(self): 
+        return "%s"%str(self.msg)
 
 
 def status_success(): 
@@ -134,34 +141,45 @@ else:
 
 #################################### Create interface to the C functions: ####################################
 
-def list_gpus(): 
+def gpu_list(): 
     """List GPUs and get information. """
     MAX_GPUs  = 1000
     INFO_SIZE = 5
-    description = [{'name':'N',     'type':'array',  'value':None,   'dtype':int32,  'size':(1,) }, 
-                   {'name':'info',  'type':'array',  'value':None,   'dtype':int32,  'size':(MAX_GPUs,INFO_SIZE) }, ]
+    descriptor = [{'name':'N',     'type':'array',  'value':None,   'dtype':int32,  'size':(1,) }, 
+                  {'name':'info',  'type':'array',  'value':None,   'dtype':int32,  'size':(MAX_GPUs,INFO_SIZE) }, ]
     r = call_c_function( niftyrec_c.et_array_list_gpus, descriptor) 
     if not r.status == status_success(): 
-        raise ErrorInCFunction("The execution of 'list_gpus' was unsuccessful.",r.status,'niftyrec_c.et_array_list_gpus') 
-    N = r.dictionary['N'] 
+        raise ErrorInCFunction("The execution of 'gpu_list' was unsuccessful.",r.status,'niftyrec_c.et_array_list_gpus') 
+    N = r.dictionary['N'][0]
     info = r.dictionary['info'] 
     gpus = []
     for i in range(N): 
         gpus.append({'id':info[i,0], 'gflops':info[i,1], 'multiprocessors':info[i,2], 'clock':info[i,3], 'globalmemory':info[i,4] })
     return gpus 
 
-def set_gpu(id): 
-    """Set GPU (when multiple GPUs are installed in the system). """
-    description = [{'name':'id',   'type':'int',    'value':int32(id) }, ] 
-    r = call_c_function( niftyrec_c.et_array_set_gpu, descriptor)
-    if not r.status == status_success(): 
-        raise ErrorInCFunction("The execution of 'set_gpu' was unsuccessful.",r.status,'niftyrec_c.et_array_set_gpu')
+def gpu_exists(gpu_id): 
+    for gpu in gpu_list(): 
+        if gpu['id']==gpu_id: 
+            return True
+    return False 
 
-def reset_gpu(): 
+def gpu_set(gpu_id=0): 
+    """Set GPU (when multiple GPUs are installed in the system). """
+    if not gpu_exists(gpu_id): 
+        gpus = gpu_list()
+        raise ErrorGPU("The execution of 'gpu_set' was unsuccessful - the requested GPU ID does not exist. The following GPUs have been found: %s"%str(gpus))
+    descriptor = [{'name':'id',   'type':'int',    'value':gpu_id }, ] 
+    r = call_c_function( niftyrec_c.et_array_set_gpu_pointer, descriptor)
+    #print "STATUS:",r.status
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'gpu_set' was unsuccessful.",r.status,'niftyrec_c.et_array_set_gpu')
+
+def gpu_reset(): 
     """Reset the currently selected GPU. """ 
     r = call_c_function( niftyrec_c.et_array_reset_gpu, [])
     if not r.status == status_success(): 
-        raise ErrorInCFunction("The execution of 'reset_gpu' was unsuccessful.",r.status,'niftyrec_c.et_array_reset_gpu')
+        raise ErrorInCFunction("The execution of 'gpu_reset' was unsuccessful.",r.status,'niftyrec_c.et_array_reset_gpu')
+    #print "STATUS:",r.status
 
 def PET_project(activity,attenuation,binning,use_gpu=0): #FIXME: in this and all other functions, replace 'binning' object with (only the required) raw variables 
     """PET projection; output projection data is compressed. """
@@ -369,9 +387,68 @@ use_gpu, N_samples, sample_step, background, background_attenuation, direction, 
 
 
 
+def PET_initialize_compression_structure(N_axial, N_azimuthal, N_u, N_v): 
+    """Obtain 'offsets' and 'locations' arrays for fully sampled PET compressed projection data. """
+    descriptor = [{'name':'N_axial',              'type':'uint',         'value':N_axial         }, 
+                  {'name':'N_azimuthal',          'type':'uint',         'value':N_azimuthal     }, 
+                  {'name':'N_u',                  'type':'uint',         'value':N_u             },  
+                  {'name':'N_v',                  'type':'uint',         'value':N_v             }, 
+                  {'name':'offsets',              'type':'array',        'value':None,   'dtype':int32,     'size':(N_azimuthal,N_axial),           'order': 'F'  }, 
+                  {'name':'locations',            'type':'array',        'value':None,   'dtype':uint16,    'size':(3,N_u*N_v*N_axial*N_azimuthal), 'order':'F'},
+                ] 
+
+    r = call_c_function( niftyrec_c.PET_initialize_compression_structure, descriptor )
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'PET_initialize_compression_structure' was unsuccessful.",r.status,'niftyrec_c.PET_initialize_compression_structure')
+    return [r.dictionary['offsets'],r.dictionary['locations']]
+
+
+def PET_compress_projection(offsets, data, locations, N_u, N_v): 
+    """Find the zero entries in fully sampled PET projection data and compress it."""
+    N_locations = locations.shape[1]
+    N_axial     = offsets.shape[1]
+    N_azimuthal = offsets.shape[0] 
+    descriptor = [  {'name':'N_locations',             'type':'uint',      'value':N_locations   }, 
+                    {'name':'N_axial',                 'type':'uint',      'value':N_axial       }, 
+                    {'name':'N_azimuthal',             'type':'uint',      'value':N_azimuthal   }, 
+                    {'name':'N_u',                     'type':'uint',      'value':N_u           }, 
+                    {'name':'N_v',                     'type':'uint',      'value':N_v           },  
+                    {'name':'offsets',                 'type':'array',     'value':offsets       }, 
+                    {'name':'data',                    'type':'array',     'value':data          }, 
+                    {'name':'locations',               'type':'array',     'value':locations     },   
+                    {'name':'projection',              'type':'array',     'value':None,   'dtype':float32,  'size':(N_locations,),   'order':'F' },  
+                 ] 
+    r = call_c_function( niftyrec_c.PET_compress_projection, descriptor )
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'PET_compress_projection' was unsuccessful.",r.status,'niftyrec_c.PET_compress_projection')
+    return r.dictionary['projection']
+
+
+def PET_uncompress_projection(offsets, data, locations, N_u, N_v): 
+    """Uncompress compressed PET projection data. """
+    N_locations = locations.shape[1]
+    N_axial     = offsets.shape[1]
+    N_azimuthal = offsets.shape[0] 
+    descriptor = [  {'name':'N_locations',             'type':'uint',      'value':N_locations   }, 
+                    {'name':'N_axial',                 'type':'uint',      'value':N_axial       }, 
+                    {'name':'N_azimuthal',             'type':'uint',      'value':N_azimuthal   }, 
+                    {'name':'N_u',                     'type':'uint',      'value':N_u           }, 
+                    {'name':'N_v',                     'type':'uint',      'value':N_v           },  
+                    {'name':'offsets',                 'type':'array',     'value':offsets       }, 
+                    {'name':'data',                  'type':'array',     'value':data            }, 
+                    {'name':'locations',               'type':'array',     'value':locations     },   
+                    {'name':'projection',              'type':'array',     'value':None,   'dtype':float32,  'size':(N_v * N_u * N_azimuthal * N_axial, ),   'order':'F' },  
+                 ] 
+    r = call_c_function( niftyrec_c.PET_uncompress_projection, descriptor )
+    if not r.status == status_success(): 
+        raise ErrorInCFunction("The execution of 'PET_uncompress_projection' was unsuccessful.",r.status,'niftyrec_c.PET_uncompress_projection')
+    return r.dictionary['projection']
+
+
+
 
 def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value): 
-    """PET back-projection; input projection data is compressed. """
+    """Create a spherical phantom. """
     descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
@@ -393,7 +470,7 @@ def ET_spherical_phantom(voxels,size,center,radius,inner_value,outer_value):
 
 
 def ET_cylindrical_phantom(voxels,size,center,radius,length,axis,inner_value,outer_value): 
-    """PET back-projection; input projection data is compressed. """
+    """Create a cylindrical phantom. """
     descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
@@ -417,7 +494,7 @@ def ET_cylindrical_phantom(voxels,size,center,radius,length,axis,inner_value,out
 
 
 def ET_spheres_ring_phantom(voxels,size,center,ring_radius,min_sphere_radius,max_sphere_radius,N_spheres=6,inner_value=1.0,outer_value=0.0,taper=0,axis=0): 
-    """PET back-projection; input projection data is compressed. """
+    """Create a phantom with a ring of spheres of variable radius. """
     descriptor = [{'name':'image',                 'type':'array', 'value':None,   'dtype':float32,  'size':(voxels[0],voxels[1],voxels[2]),  'order':"F"  }, 
                   {'name':'Nx',                    'type':'uint',  'value':voxels[0]}, 
                   {'name':'Ny',                    'type':'uint',  'value':voxels[1]}, 
@@ -440,7 +517,6 @@ def ET_spheres_ring_phantom(voxels,size,center,ring_radius,min_sphere_radius,max
     if not r.status == status_success(): 
         raise ErrorInCFunction("The execution of 'ET_spheres_ring_phantom' was unsuccessful.",r.status,'niftyrec_c.ET_spheres_ring_phantom')
     return r.dictionary['image']
-
 
     
 
