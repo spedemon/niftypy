@@ -22,7 +22,7 @@ from glob import glob
 
 setup(
     name='NiftyPy',
-    version='0.3.1',
+    version='0.3.2',
     author='Stefano Pedemonte',
     author_email='spedemonte@mgh.harvard.edu',
     packages=['NiftyPy', 
