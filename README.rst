@@ -2,18 +2,9 @@
 NiftyPy
 =========
 
-Registration, segmentation, tomographic reconstruction. 
-Python wrapper of NiftyRec, NiftyReg and NiftySeg. 
-
-Typical usage looks like this:
-
-#!/usr/bin/env python
-from NiftyPy import NiftyRec
-
-
-... more documentation is required, for now look at how this package is utilized in occiput.io
-While NiftyPy is just a Python wrapper of the NiftyRec, NiftyReg and NiftySeg libraries, occiput.io provides a high level interface for tomographic reconstruction (SPECT, PET, CT) and for other imaging tasks. It’s easies, with occiput.io, to define the system geometry and reconstruct with iterative algorithms. 
-
+NiftyPy is a Python wrapper of the NiftyRec C library. 
+The NiftyRec library provides GPU-accelerated ray-tracers for Posotron Emission Tomography (PET), 
+Single Photon Emission Computed Tomography (SPECT) and X-Ray Computed Tomography (CT). 
 
 Installation
 ============
@@ -35,7 +26,4 @@ python setup.py build test install
 Website
 =======
 
-`NiftyPy home page <http://www.occiput.io/>`_. 
-
-
-
+`NiftyPy home page <http:tomographylab.scienceontheweb.net>`_. 
